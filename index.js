@@ -11,6 +11,8 @@ import blake3 from 'blake3';
 
 // const contractInstance = new ethers.Contract("1x677b4b5b6",abi,signer);
 
+
+
 const thresh = BigInt("0x" + "f694a1eca435cc9a0af444f69830b5d480f8c9b01e2ce62bb720422fb0a5193e");
 
 const count = 0;
@@ -23,9 +25,35 @@ const hopArray = [];
 
 const temp_block = [];
 
-const onMsgIn = (msg, source) => {
+const currentAddress = "192.168.45.67"
 
-    if (verifyPacket(msg)) {
+const interceptMsg = (msg) => {
+    //intercepting  outgoing IOT data packets
+    const signedMsg = signMsg(msg);
+    if (signedMsg) {
+        // forwarding IOT packets to destination
+    }
+}
+
+const receieveMsg = (msg) => {
+    // intercepting incoming IOT data packets
+    const isVerified = verifyMsg(msg)
+    if (isVerified) {
+        // let the packets come in 
+    }
+}
+
+const signMsg = (msg) => {
+    const hash = blake3.hash(JSON.stringify(msg)).toString("hex");
+    const signature = secretKey.sign(hash);
+    msg.hash = hash;
+    msg.sign = signature;
+    msg.publicKey = publicKey;
+    return verifyMsg(msg)
+}
+
+const verifyMsg = (msg) => {
+    if (bls.verify(msg.signature, msg.publicKey, msg.message)(msg)) {
         if (BigInt("0x" + packet.hash) > thresh && count < 10) {
             msg.root = true;
             ++count;
@@ -39,28 +67,19 @@ const onMsgIn = (msg, source) => {
             const block = {};
             block.data = temp_block;
             block.timeStamp = new Date().getTime();
-            block.hash = blake3(block.data);
+            block.hash = blake3.hash(block.data);
+        }
+        if (msg.destination == currentAddress) {
+            // Calling smart contract 
+            return msg
+        }
+        else {
+            return msg
         }
     }
     else {
-        return;
+        return 0;
     }
 
 }
 
-const verifyPacket = (msg) => {
-
-    return verify(msg.signature, msg.publicKey, msg.message);
-
-}
-
-
-
-const onMsgOut = (msg) => {
-    const hash = blake3.hash(JSON.stringify(msg)).toString("hex");
-    const signature = secretKey.sign(hash);
-    msg.hash = hash;
-    msg.sign += signature;
-    msg.publicKey = publicKey;
-    return hash;
-}
