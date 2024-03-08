@@ -1,34 +1,50 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.24;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity ^0.8.0;
 
-// Uncomment this line to use console.log
-// import "hardhat/console.sol";
+struct subNodes {
+    string src;
+    string des;
+    string hash;
+}
 
-contract Lock {
-    uint public unlockTime;
-    address payable public owner;
+struct node {
+    subNodes[] data;
+    string src;
+    string dest; // Corrected typo (dest instead of des)
+    string hash;
+    address[] hopArray;
+}
 
-    event Withdrawal(uint amount, uint when);
+contract BPRSec {
+    node[] public allRootNodes;
+    mapping(address => uint) public token;
 
-    constructor(uint _unlockTime) payable {
-        require(
-            block.timestamp < _unlockTime,
-            "Unlock time should be in the future"
-        );
+    function getBlocks(node memory rootNodes) public {
+        require(rootNodes.data.length == 10, "Invalid rootNodes length");
 
-        unlockTime = _unlockTime;
-        owner = payable(msg.sender);
-    }
+        // Create a new node instance directly in storage
+        node storage newNode = allRootNodes.push();
 
-    function withdraw() public {
-        // Uncomment this line, and the import of "hardhat/console.sol", to print a log in your terminal
-        // console.log("Unlock time is %o and block timestamp is %o", unlockTime, block.timestamp);
+        // Copy data from memory to storage element-wise
+        for (uint i = 0; i < rootNodes.data.length; i++) {
+            newNode.data.push(rootNodes.data[i]);
+        }
 
-        require(block.timestamp >= unlockTime, "You can't withdraw yet");
-        require(msg.sender == owner, "You aren't the owner");
+        newNode.src = rootNodes.src;
+        newNode.dest = rootNodes.dest;
+        newNode.hash = rootNodes.hash;
 
-        emit Withdrawal(address(this).balance, block.timestamp);
+        // Create a new array for hop addresses in storage
+        newNode.hopArray = new address[](rootNodes.hopArray.length);
 
-        owner.transfer(address(this).balance);
+        // Copy hop addresses element by element
+        for (uint i = 0; i < rootNodes.hopArray.length; i++) { // Corrected loop limit (should be hopArray.length)
+            newNode.hopArray[i] = rootNodes.hopArray[i];
+        }
+        allRootNodes.push(newNode);
+        // Assign tokens for hop addresses
+        for (uint i = 0; i < newNode.hopArray.length; i++) {
+            token[address(newNode.hopArray[i])] = 1;
+        }
     }
 }
