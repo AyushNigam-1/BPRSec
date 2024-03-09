@@ -1,14 +1,13 @@
 import bls from "@chainsafe/bls/blst-native";
 import blake3 from 'blake3';
 import { ethers } from "ethers";
+const abi = require(".artifacts/contracts/BPRSec.sol/BPRSec.sol");
 
-// const provider = new ethers.JsonRpcProvider("https://goerli.infura.io/v3/7b44fc1db7cb457cba9a7b5dd6a0e497")
+const provider = new ethers.JsonRpcProvider("http://localhost:8545")
 
-// const signer = new ethers.Wallet("ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80" , provider);
+const signer = new ethers.Wallet("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80", provider);
 
-// const abi =  require("./contracts/Lock.sol");
-
-// const contractInstance = new ethers.Contract("1x677b4b5b6",abi,signer);
+const contract = new ethers.Contract("0x5FbDB2315678afecb367f032d93F642f64180aa3", abi, signer);
 
 const thresh = BigInt("0x" + "f694a1eca435cc9a0af444f69830b5d480f8c9b01e2ce62bb720422fb0a5193e");
 
@@ -65,9 +64,11 @@ const verifyMsg = (msg) => {
             block.data = blocks[msg.destination].temp_block;
             block.timeStamp = new Date().getTime();
             block.hash = blake3.hash(JSON.stringify(block.data));
+            // delete block[msg.destination].count;
+            contract.save(blocks)
         }
         if (msg.destination == currentAddress) {
-            // Invoke smart contract 
+            contract.distributeTokens(blocks[msg.destination].hopArray)
         }
         return msg
     }
