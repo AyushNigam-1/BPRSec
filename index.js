@@ -49,7 +49,7 @@ const signMsg = (msg) => {
 
 const verifyMsg = (msg) => {
     if (bls.verify(msg.signature, msg.publicKey, msg.message)) {
-        if (BigInt("0x" + packet.hash) > thresh && blocks[msg.destination].count < 10) {
+        if (BigInt("0x" + packet.hash) < thresh && blocks[msg.destination].count < 10) {
             msg.root = true;
             blocks[msg.destination].count++;
             blocks[msg.destination].hopArray.push(msg.source);
@@ -63,12 +63,12 @@ const verifyMsg = (msg) => {
             const block = {};
             block.data = blocks[msg.destination].temp_block;
             block.timeStamp = new Date().getTime();
-            block.hash = blake3.hash(JSON.stringify(block.data));
-            // delete block[msg.destination].count;
-            contract.save(blocks)
+            block.signature = blake3.hash(JSON.stringify(block.data));
+            block.hopArray = blocks[msg.destination].hopArray;
+            contract.save(block);
         }
         if (msg.destination == currentAddress) {
-            contract.distributeTokens(blocks[msg.destination].hopArray)
+            contract.distributeTokens(blocks[msg.destination].hopArray);
         }
         return msg
     }

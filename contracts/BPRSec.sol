@@ -5,6 +5,8 @@ struct subNodes {
     string src;
     string des;
     string hashedData;
+    string signature;
+    string publicKey;
 }
 
 struct node {
