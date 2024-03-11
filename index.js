@@ -5,7 +5,7 @@ const abi = require(".artifacts/contracts/BPRSec.sol/BPRSec.sol");
 
 const provider = new ethers.JsonRpcProvider("http://localhost:8545")
 
-const signer = new ethers.Wallet("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80", provider);
+const signer = new ethers.Wallet("private_key", provider);
 
 const contract = new ethers.Contract("0x5FbDB2315678afecb367f032d93F642f64180aa3", abi, signer);
 
@@ -37,9 +37,8 @@ const receieveMsg = (msg) => {
         // drop packet
     }
 }
-
 const signMsg = (msg) => {
-    const hash = blake3.hash(JSON.stringify(msg)).toString("hex");
+    const hash = blake3.hash(JSON.stringify(msg.message)).toString("hex");
     const signature = secretKey.sign(hash);
     msg.hash = hash;
     msg.sign = signature;
@@ -48,13 +47,12 @@ const signMsg = (msg) => {
 }
 
 const verifyMsg = (msg) => {
-    if (bls.verify(msg.signature, msg.publicKey, msg.message)) {
+    if (bls.verify(msg.sign, msg.publicKey, msg.message)) {
         if (BigInt("0x" + packet.hash) < thresh && blocks[msg.destination].count < 10) {
             msg.root = true;
             blocks[msg.destination].count++;
             blocks[msg.destination].hopArray.push(msg.source);
             blocks[msg.destination].temp_block.push(msg);
-            return;
         }
         else {
             msg.root = false
@@ -65,6 +63,8 @@ const verifyMsg = (msg) => {
             block.timeStamp = new Date().getTime();
             block.signature = blake3.hash(JSON.stringify(block.data));
             block.hopArray = blocks[msg.destination].hopArray;
+            block.dest = msg.destination
+            block.src = msg.src
             contract.save(block);
         }
         if (msg.destination == currentAddress) {

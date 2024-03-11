@@ -4,15 +4,18 @@ pragma solidity ^0.8.17;
 struct subNodes {
     string src;
     string des;
-    string hashedData;
-    string signature;
+    string message;
+    string hash;
+    string sign;
     string publicKey;
+    string timeStamp;
 }
 
 struct node {
     subNodes[] data;
     string src;
     string dest;
+    string timeStamp;
     string signature;
     string[] hopArray;
 }
