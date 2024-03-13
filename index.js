@@ -9,8 +9,6 @@ const signer = new ethers.Wallet("private_key", provider);
 
 const contract = new ethers.Contract("0x5FbDB2315678afecb367f032d93F642f64180aa3", abi, signer);
 
-const thresh = BigInt("0x" + "f694a1eca435cc9a0af444f69830b5d480f8c9b01e2ce62bb720422fb0a5193e");
-
 const secretKey = bls.SecretKey.fromKeygen();
 
 const publicKey = secretKey.toPublicKey();
@@ -38,7 +36,7 @@ const receieveMsg = (msg) => {
     }
 }
 const signMsg = (msg) => {
-    const hash = blake3.hash(JSON.stringify(msg.message)).toString("hex");
+    const hash = blake3.hash(JSON.stringify(msg?.message)).toString("hex");
     const signature = secretKey.sign(hash);
     msg.hash = hash;
     msg.sign = signature;
@@ -46,29 +44,36 @@ const signMsg = (msg) => {
     return msg;
 }
 
-const verifyMsg = (msg) => {
+const verifyMsg = async (msg) => {
     if (bls.verify(msg.sign, msg.publicKey, msg.message)) {
-        if (BigInt("0x" + packet.hash) < thresh && blocks[msg.destination].count < 10) {
+        if (blocks[msg.destination].thresh) {
+            blocks[msg.destination].thresh = (blocks[msg.destination].temp_blocks.reduce((acc, block) => { BigInt("0x" + acc.hash), BigInt("0x" + block.hash), 0 })) / blocks[msg.destination].temp_blocks.length
+        }
+        else {
+            blocks[msg.destination].thresh = BigInt("0x" + msg.hash);
+        }
+        if ((BigInt("0x" + msg.hash) <= blocks[msg.destination].thresh) && blocks[msg.destination].count < 10) {
             msg.root = true;
             blocks[msg.destination].count++;
             blocks[msg.destination].hopArray.push(msg.source);
-            blocks[msg.destination].temp_block.push(msg);
+            blocks[msg.destination].temp_blocks.push(msg);
         }
         else {
             msg.root = false
         }
         if (blocks[msg.destination].count == 10) {
             const block = {};
-            block.data = blocks[msg.destination].temp_block;
+            block.data = blocks[msg.destination].temp_blocks;
             block.timeStamp = new Date().getTime();
-            block.signature = blake3.hash(JSON.stringify(block.data));
+            block.signature = blake3.hash(blocks[msg.destination].data.map(block => block.hash).join(""))
             block.hopArray = blocks[msg.destination].hopArray;
             block.dest = msg.destination
             block.src = msg.src
-            contract.save(block);
+            await contract.save(block);
+            delete blocks[msg.destination]
         }
         if (msg.destination == currentAddress) {
-            contract.distributeTokens(blocks[msg.destination].hopArray);
+            await contract.distributeTokens(blocks[msg.destination].hopArray);
         }
         return msg
     }
