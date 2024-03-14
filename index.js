@@ -19,10 +19,15 @@ const currentAddress = "192.168.45.67"
 
 const interceptMsg = (msg) => {
     // intercepting outgoing  data packets
+    if (msg.ttl <= 0) {
+        return;
+    }
     const signedMsg = signMsg(msg);
     if (signedMsg) {
+        msg.ttl--;
         // forwarding packets to destination
     }
+    return
 }
 
 const receieveMsg = (msg) => {

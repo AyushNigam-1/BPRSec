@@ -45,7 +45,7 @@ contract BPRSec {
     }
     function distributeTokens(string[] memory hopArray) public {
         for (uint i = 0; i < hopArray.length; i++) {
-            token[(hopArray[i])] = 1;
+            token[(hopArray[i])] = token[(hopArray[i])] + 1;
         }
     }
 }
