@@ -60,7 +60,7 @@ const verifyMsg = async (msg) => {
         if ((BigInt("0x" + msg.hash) <= blocks[msg.destination].thresh) && blocks[msg.destination].count < 10) {
             msg.root = true;
             blocks[msg.destination].count++;
-            blocks[msg.destination].hopArray.push(msg.source);
+            blocks[msg.destination].hopArray.push(currentAddress);
             blocks[msg.destination].temp_blocks.push(msg);
         }
         else {
@@ -75,7 +75,8 @@ const verifyMsg = async (msg) => {
             block.dest = msg.destination
             block.src = msg.src
             await contract.save(block);
-            delete blocks[msg.destination]
+            blocks[msg.destination].count = 0
+            blocks[msg.destination].temp_blocks = []
         }
         if (msg.destination == currentAddress) {
             await contract.distributeTokens(blocks[msg.destination].hopArray);
