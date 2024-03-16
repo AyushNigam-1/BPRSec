@@ -23,6 +23,7 @@ struct node {
 contract BPRSec {
     node[] public allRootNodes;
     mapping(string => uint) public token;
+    event TokenUpdated(string hopAddress, uint256 newCount);
 
     function save(node memory rootNodes) public {
         require(rootNodes.data.length == 10, "Invalid rootNodes length");
@@ -46,6 +47,16 @@ contract BPRSec {
     function distributeTokens(string[] memory hopArray) public {
         for (uint i = 0; i < hopArray.length; i++) {
             token[(hopArray[i])] = token[(hopArray[i])] + 1;
+            emit TokenUpdated(hopArray[i], token[hopArray[i]]);
         }
+    }
+    function getAllTokenData() public view returns (TokenData[] memory) {
+        TokenData[] memory allTokenData = new TokenData[](token.length);
+        uint256 index = 0;
+        // for (uint i = 0; i > token.length; i++) {
+        //     allTokenData[index] = TokenData(hopAddress, token[hopAddress]);
+        //     index++;
+        // }
+        return allTokenData;
     }
 }

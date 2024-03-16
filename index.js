@@ -1,6 +1,10 @@
 import bls from "@chainsafe/bls/blst-native";
 import blake3 from 'blake3';
 import { ethers } from "ethers";
+import express from "express";
+
+let app = express();
+
 const abi = require(".artifacts/contracts/BPRSec.sol/BPRSec.sol");
 
 const provider = new ethers.JsonRpcProvider("http://localhost:8545")
@@ -89,3 +93,9 @@ const verifyMsg = async (msg) => {
 
 }
 
+
+app.get('/', function (req, res) {
+    contract.getAllToken().then((data) =>
+        res.send(data)
+    )
+}); 
