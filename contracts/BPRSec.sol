@@ -20,9 +20,14 @@ struct node {
     string[] hopArray;
 }
 
+struct token {
+    string add;
+    uint token;
+}
 contract BPRSec {
+    token[] public allTokens;
     node[] public allRootNodes;
-    mapping(string => uint) public token;
+    mapping(string => uint) public distTokens;
     event TokenUpdated(string hopAddress, uint256 newCount);
 
     function save(node memory rootNodes) public {
@@ -46,17 +51,12 @@ contract BPRSec {
     }
     function distributeTokens(string[] memory hopArray) public {
         for (uint i = 0; i < hopArray.length; i++) {
-            token[(hopArray[i])] = token[(hopArray[i])] + 1;
+            distTokens[(hopArray[i])] = distTokens[(hopArray[i])] + 1;
+            allTokens.push(token(hopArray[i], distTokens[(hopArray[i])] + 1));
             emit TokenUpdated(hopArray[i], token[hopArray[i]]);
         }
     }
-    function getAllTokenData() public view returns (TokenData[] memory) {
-        TokenData[] memory allTokenData = new TokenData[](token.length);
-        uint256 index = 0;
-        // for (uint i = 0; i > token.length; i++) {
-        //     allTokenData[index] = TokenData(hopAddress, token[hopAddress]);
-        //     index++;
-        // }
-        return allTokenData;
+    function getAllTokenData() public view returns (token[] memory) {
+        return allTokens;
     }
 }
