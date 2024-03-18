@@ -53,10 +53,10 @@ contract BPRSec {
         for (uint i = 0; i < hopArray.length; i++) {
             distTokens[(hopArray[i])] = distTokens[(hopArray[i])] + 1;
             allTokens.push(token(hopArray[i], distTokens[(hopArray[i])] + 1));
-            emit TokenUpdated(hopArray[i], token[hopArray[i]]);
+            emit TokenUpdated(hopArray[i], distTokens[hopArray[i]]);
         }
     }
-    function getAllTokenData() public view returns (token[] memory) {
+    function getAllToken() public view returns (token[] memory) {
         return allTokens;
     }
 }

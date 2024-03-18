@@ -2,6 +2,7 @@ import bls from "@chainsafe/bls/blst-native";
 import blake3 from 'blake3';
 import { ethers } from "ethers";
 import express from "express";
+import net from 'net';
 
 let app = express();
 
@@ -21,28 +22,60 @@ const blocks = {}
 
 const currentAddress = "192.168.45.67"
 
-const interceptMsg = (msg) => {
-    // intercepting outgoing  data packets
-    if (msg.ttl <= 0) {
-        return;
+
+const server = net.createServer((socket) => {
+    socket.on('data', (data) => {
+        onMessageRecieve(data)
+    });
+
+    socket.on('error', (err) => {
+        console.error('Socket error:', err);
+    });
+});
+
+
+const client = net.createConnection({ port: 8080 }, () => {
+    console.log('Connected to server');
+    try {
+        client.write(onMessageSend());
+    } catch (error) {
+        console.log("Package dropped")
     }
+});
+
+client.on('data', (data) => {
+    console.log('Received message from server:', data.toString());
+});
+
+client.on('error', (err) => {
+    console.error('Client error:', err);
+});
+
+server.listen(8080, () => {
+    console.log('Server listening on port 8080');
+});
+
+const onMessageSend = (msg) => {
     const signedMsg = signMsg(msg);
     if (signedMsg) {
         msg.ttl--;
-        // forwarding packets to destination
+        return signedMsg
     }
     return
 }
 
-const receieveMsg = (msg) => {
-    // intercepting incoming  data packets
+const onMessageRecieve = (msg) => {
+    if (msg.ttl <= 0) {
+        return;
+    }
     const isVerified = verifyMsg(msg)
     if (isVerified) {
-        // let the packet come in 
+        msg.ttl--;
     }
     else {
         // drop packet
     }
+
 }
 const signMsg = (msg) => {
     const hash = blake3.hash(JSON.stringify(msg?.message)).toString("hex");
@@ -60,11 +93,13 @@ const verifyMsg = async (msg) => {
         }
         else {
             blocks[msg.destination].thresh = BigInt("0x" + msg.hash);
+            blocks[msg.destination].sum += BigInt("0x" + msg.hash);
+            blocks[msg.destination].total = ++blocks[msg.destination].total;
         }
         if ((BigInt("0x" + msg.hash) <= blocks[msg.destination].thresh) && blocks[msg.destination].count < 10) {
             msg.root = true;
             blocks[msg.destination].count++;
-            blocks[msg.destination].hopArray.push(currentAddress);
+            blocks[msg.destination].hopArray.push({ currentAddress: blocks[msg.destination].hopArray[currentAddress] == 2 ? 1 : 1 });
             blocks[msg.destination].temp_blocks.push(msg);
         }
         else {
@@ -72,25 +107,26 @@ const verifyMsg = async (msg) => {
         }
         if (blocks[msg.destination].count == 10) {
             const block = {};
-            block.data = blocks[msg.destination].temp_blocks;
-            block.timeStamp = new Date().getTime();
+            block.data = blocks[msg.destination].temp_blocks
+            block.timeStamp = new Date().getTime()
             block.signature = blake3.hash(blocks[msg.destination].data.map(block => block.hash).join(""))
             block.hopArray = blocks[msg.destination].hopArray;
             block.dest = msg.destination
             block.src = msg.src
-            await contract.save(block);
+            await contract.save(block)
             blocks[msg.destination].count = 0
-            blocks[msg.destination].temp_blocks = []
         }
         if (msg.destination == currentAddress) {
-            await contract.distributeTokens(blocks[msg.destination].hopArray);
+            await contract.distributeTokens(blocks[msg.destination].hopArray.map(hop => hop[hop.keys()[0]] == 1));
+            blocks[msg.destination].hopArray.forEach((hop) => {
+                hop[hop.keys()[0]] = 2
+            });
         }
         return msg
     }
     else {
         return 0;
     }
-
 }
 
 
