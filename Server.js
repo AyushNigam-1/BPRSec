@@ -1,18 +1,18 @@
 import bls from "@chainsafe/bls/blst-native";
 import blake3 from 'blake3';
-import { ethers } from "ethers";
+// import { ethers } from "ethers";
 import express from "express";
 import net from 'net';
+// import abi from './artifacts/contracts/BPRSec.sol/BPRSec.json'assert { type: 'json' }
 
 let app = express();
 
-const abi = require(".artifacts/contracts/BPRSec.sol/BPRSec.sol");
 
-const provider = new ethers.JsonRpcProvider("http://localhost:8545")
+// const provider = new ethers.JsonRpcProvider("http://localhost:8545")
 
-const signer = new ethers.Wallet("private_key", provider);
+// const signer = new ethers.Wallet("0cb0ecd4f01a39ffbe8e8e7f750d4744c70dd27a4472fcc54f27046e138e1157", provider);
 
-const contract = new ethers.Contract("0x5FbDB2315678afecb367f032d93F642f64180aa3", abi, signer);
+// const contract = new ethers.Contract("0x5FbDB2315678afecb367f032d93F642f64180aa3", abi, signer);
 
 const secretKey = bls.SecretKey.fromKeygen();
 
@@ -22,10 +22,13 @@ const blocks = {}
 
 const currentAddress = "192.168.45.67"
 
-
 const server = net.createServer((socket) => {
-    socket.on('data', (data) => {
-        onMessageRecieve(data)
+    console.log('Client connected');
+    socket.on('data', async (data) => {
+        // const msg = JSON.parse(data.toString())
+        // console.log(msg.publicKey, msg.hash, msg.signature)
+        // console.log(bls.verify(msg.publicKey, msg.hash, msg.signature))
+        onMessageRecieve(JSON.parse(data.toString()))
     });
 
     socket.on('error', (err) => {
@@ -33,95 +36,81 @@ const server = net.createServer((socket) => {
     });
 });
 
-
-const client = net.createConnection({ port: 8080 }, () => {
-    console.log('Connected to server');
-    try {
-        client.write(onMessageSend());
-    } catch (error) {
-        console.log("Package dropped")
-    }
-});
-
-client.on('data', (data) => {
-    console.log('Received message from server:', data.toString());
-});
-
-client.on('error', (err) => {
-    console.error('Client error:', err);
-});
-
 server.listen(8080, () => {
     console.log('Server listening on port 8080');
 });
 
+
 const onMessageSend = (msg) => {
     const signedMsg = signMsg(msg);
     if (signedMsg) {
-        msg.ttl--;
         return signedMsg
     }
     return
 }
 
-const onMessageRecieve = (msg) => {
-    if (msg.ttl <= 0) {
-        return;
-    }
-    const isVerified = verifyMsg(msg)
+const onMessageRecieve = async (msg) => {
+    const isVerified = await verifyMsg(msg)
+
     if (isVerified) {
-        msg.ttl--;
+        // console.log({ isVerified })
     }
     else {
-        // drop packet
     }
+
 
 }
 const signMsg = (msg) => {
-    const hash = blake3.hash(JSON.stringify(msg?.message)).toString("hex");
+    const hash = blake3.hash(new TextEncoder().encode(JSON.stringify(msg?.message))).toString("hex");
     const signature = secretKey.sign(hash);
     msg.hash = hash;
-    msg.sign = signature;
+    msg.signature = signature;
     msg.publicKey = publicKey;
     return msg;
 }
 
 const verifyMsg = async (msg) => {
-    if (bls.verify(msg.sign, msg.publicKey, msg.message)) {
-        if (blocks[msg.destination].thresh) {
-            blocks[msg.destination].thresh = (blocks[msg.destination].temp_blocks.reduce((acc, block) => { BigInt("0x" + acc.hash), BigInt("0x" + block.hash), 0 })) / blocks[msg.destination].temp_blocks.length
-        }
-        else {
-            blocks[msg.destination].thresh = BigInt("0x" + msg.hash);
-            blocks[msg.destination].sum += BigInt("0x" + msg.hash);
-            blocks[msg.destination].total = ++blocks[msg.destination].total;
-        }
-        if ((BigInt("0x" + msg.hash) <= blocks[msg.destination].thresh) && blocks[msg.destination].count < 10) {
-            msg.root = true;
-            blocks[msg.destination].count++;
-            blocks[msg.destination].hopArray.push({ currentAddress: blocks[msg.destination].hopArray[currentAddress] == 2 ? 1 : 1 });
-            blocks[msg.destination].temp_blocks.push(msg);
-        }
-        else {
-            msg.root = false
-        }
-        if (blocks[msg.destination].count == 10) {
-            const block = {};
-            block.data = blocks[msg.destination].temp_blocks
-            block.timeStamp = new Date().getTime()
-            block.signature = blake3.hash(blocks[msg.destination].data.map(block => block.hash).join(""))
-            block.hopArray = blocks[msg.destination].hopArray;
-            block.dest = msg.destination
-            block.src = msg.src
-            await contract.save(block)
-            blocks[msg.destination].count = 0
-        }
-        if (msg.destination == currentAddress) {
-            await contract.distributeTokens(blocks[msg.destination].hopArray.map(hop => hop[hop.keys()[0]] == 1));
-            blocks[msg.destination].hopArray.forEach((hop) => {
-                hop[hop.keys()[0]] = 2
-            });
-        }
+    if (bls.verify(new Uint8Array([...Object.values(msg.publicKey)]), new Uint8Array([...Object.values(msg.hash)]), (new Uint8Array([...Object.values(msg.signature)])))) {
+        msg.hash = Array.from(msg.hash)
+            .map(b => b.toString(16).padStart(2, '0'))
+            .join('');
+        console.log("msg.hash", msg.hash)
+        // console.log(blocks[msg.header.destination_address].hehe = "wow")
+        // console.log(blocks)
+        // if (blocks[msg.header.destination_address]?.thresh) {
+        //     blocks[msg.header.destination_address].thresh = (blocks[msg.header.destination_address].temp_blocks.reduce((acc, block) => { BigInt("0x" + acc.hash), BigInt("0x" + block.hash), 0 })) / blocks[msg.header.destination_address].temp_blocks.length
+        // }
+        // else {
+        //     blocks[msg.header.destination_address].thresh = BigInt(msg.hash);
+        //     blocks[msg.header.destination_address].sum = BigInt(msg.hash);
+        //     blocks[msg.header.destination_address].total = 1;
+        // }
+        // if ((BigInt("0x" + msg.hash) <= blocks[msg.header.destination_address].thresh) && blocks[msg.header.destination_address].count < 10) {
+        //     msg.root = true;
+        //     blocks[msg.header.destination_address].count++;
+        //     blocks[msg.header.destination_address].hopArray.push({ currentAddress: blocks[msg.header.destination_address].hopArray[currentAddress] == 2 ? 1 : 1 });
+        //     blocks[msg.header.destination_address].temp_blocks.push(msg);
+        // }
+        // else {
+        //     msg.root = false
+        // }
+        // if (blocks[msg.header.destination_address].count == 10) {
+        //     const block = {};
+        //     block.data = blocks[msg.header.destination_address].temp_blocks
+        //     block.timeStamp = new Date().getTime()
+        //     block.signature = blake3.hash(blocks[msg.header.destination_address].data.map(block => block.hash).join(""))
+        //     block.hopArray = blocks[msg.header.destination_address].hopArray;
+        //     block.dest = msg.header.destination_address
+        //     block.src = msg.src
+        //     // await contract.save(block)
+        //     blocks[msg.header.destination_address].count = 0
+        // }
+        // if (msg.header.destination_address == currentAddress) {
+        //     // await contract.distributeTokens(blocks[msg.header.destination_address].hopArray.map(hop => hop[hop.keys()[0]] == 1));
+        //     blocks[msg.header.destination_address].hopArray.forEach((hop) => {
+        //         hop[hop.keys()[0]] = 2
+        //     });
+        // }
         return msg
     }
     else {

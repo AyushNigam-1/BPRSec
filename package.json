@@ -15,6 +15,7 @@
     "blake3": "^2.1.7",
     "bls-signatures": "^2.0.2",
     "elliptic": "^6.5.5",
+    "ethereumjs-abi": "^0.6.8",
     "ethers": "^6.11.1",
     "express": "^4.18.3"
   },
