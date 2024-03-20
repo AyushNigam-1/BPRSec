@@ -71,29 +71,29 @@ const signMsg = (msg) => {
 
 const verifyMsg = async (msg) => {
     if (bls.verify(new Uint8Array([...Object.values(msg.publicKey)]), new Uint8Array([...Object.values(msg.hash)]), (new Uint8Array([...Object.values(msg.signature)])))) {
-        msg.hash = Array.from(msg.hash)
-            .map(b => b.toString(16).padStart(2, '0'))
-            .join('');
-        console.log("msg.hash", msg.hash)
-        // console.log(blocks[msg.header.destination_address].hehe = "wow")
+        msg.hash = parseInt(blake3.hash(new TextDecoder().decode(new Uint8Array([...Object.values(msg.hash)]))).toString("hex"), 16)
+        if (blocks[msg.header.destination_address]) {
+            blocks[msg.header.destination_address].thresh = (blocks[msg.header.destination_address].temp_blocks.reduce((acc, block) => acc + block.hash, 0)) / blocks[msg.header.destination_address].count
+        }
+        else {
+            blocks[msg.header.destination_address] = {}
+            blocks[msg.header.destination_address].count = 0
+            blocks[msg.header.destination_address].hopArray = []
+            blocks[msg.header.destination_address].temp_blocks = []
+            blocks[msg.header.destination_address].thresh = msg.hash
+        }
+        if ((msg.hash <= blocks[msg.header.destination_address].thresh) && blocks[msg.header.destination_address].count < 10) {
+            msg.root = true;
+            // console.log("root")
+            blocks[msg.header.destination_address].count++;
+            blocks[msg.header.destination_address].hopArray.push({ [currentAddress]: blocks[msg.header.destination_address].hopArray[currentAddress] == 2 ? 1 : 1 });
+            blocks[msg.header.destination_address].temp_blocks.push(msg);
+            console.log(blocks[msg.header.destination_address].thresh)
+        }
+        else {
+            msg.root = false
+        }
         // console.log(blocks)
-        // if (blocks[msg.header.destination_address]?.thresh) {
-        //     blocks[msg.header.destination_address].thresh = (blocks[msg.header.destination_address].temp_blocks.reduce((acc, block) => { BigInt("0x" + acc.hash), BigInt("0x" + block.hash), 0 })) / blocks[msg.header.destination_address].temp_blocks.length
-        // }
-        // else {
-        //     blocks[msg.header.destination_address].thresh = BigInt(msg.hash);
-        //     blocks[msg.header.destination_address].sum = BigInt(msg.hash);
-        //     blocks[msg.header.destination_address].total = 1;
-        // }
-        // if ((BigInt("0x" + msg.hash) <= blocks[msg.header.destination_address].thresh) && blocks[msg.header.destination_address].count < 10) {
-        //     msg.root = true;
-        //     blocks[msg.header.destination_address].count++;
-        //     blocks[msg.header.destination_address].hopArray.push({ currentAddress: blocks[msg.header.destination_address].hopArray[currentAddress] == 2 ? 1 : 1 });
-        //     blocks[msg.header.destination_address].temp_blocks.push(msg);
-        // }
-        // else {
-        //     msg.root = false
-        // }
         // if (blocks[msg.header.destination_address].count == 10) {
         //     const block = {};
         //     block.data = blocks[msg.header.destination_address].temp_blocks
@@ -105,12 +105,12 @@ const verifyMsg = async (msg) => {
         //     // await contract.save(block)
         //     blocks[msg.header.destination_address].count = 0
         // }
-        // if (msg.header.destination_address == currentAddress) {
-        //     // await contract.distributeTokens(blocks[msg.header.destination_address].hopArray.map(hop => hop[hop.keys()[0]] == 1));
-        //     blocks[msg.header.destination_address].hopArray.forEach((hop) => {
-        //         hop[hop.keys()[0]] = 2
-        //     });
-        // }
+        if (msg.header.destination_address == currentAddress) {
+            // await contract.distributeTokens(blocks[msg.header.destination_address].hopArray.map(hop => hop[hop.keys()[0]] == 1));
+            blocks[msg.header.destination_address].hopArray.forEach((hop) => {
+                hop[hop.keys()[0]] = 2
+            });
+        }
         return msg
     }
     else {
