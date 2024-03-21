@@ -3,7 +3,7 @@ import blake3 from 'blake3';
 // import { ethers } from "ethers";
 import express from "express";
 import net from 'net';
-
+import * as fs from 'fs'
 let app = express();
 
 // const abi = require(".artifacts/contracts/BPRSec.sol/BPRSec.sol");
@@ -36,44 +36,25 @@ const server = net.createServer((socket) => {
 
 const client = net.createConnection({ port: 8080 }, () => {
     console.log('Connected to server');
-    let i = 0
-    const packets = setInterval(() => {
-        try {
-            client.write(onMessageSend({
-                "header": {
-                    "source_address": "192.168.1.103",
-                    "destination_address": "10.0.0.1",
-                    "packet_length": 60
-                },
-                "payload": {
-                    "temperature": 20.3,
-                    "timestamp": "2024-03-17T08:15:00",
-                    "sensor_id": "sensor004"
-                },
-                "checksum_crc": "0x819D",
-                "protocol_specific": {
-                    "protocol": "MQTT",
-                    "topic": "/temperature/sensor004"
-                }
-            }));
-        } catch (error) {
-            console.log("err", error)
-            console.log("Package dropped")
+    fs.readFile('./iot_data.json', 'utf8', (err, data) => {
+        if (err) {
+            console.error(err);
+            return;
         }
-        i++
-        if (i == 4) {
-            clearInterval(packets)
-        }
-    }, 1000)
-});
-
-// client.on('data', (data) => {
-//     console.log('Received message from server:', data.toString());
-// });
-
-// client.on('error', (err) => {
-//     console.error('Client error:', err);
-// });
+        const jsonData = JSON.parse(data);
+        const interval = setInterval(() => {
+            try {
+                client.write(onMessageSend(jsonData[i]));
+            } catch (error) {
+                console.log("err", error)
+                console.log("Package dropped")
+            }
+            if (i == jsonData.length) {
+                clearInterval(interval)
+            }
+        }, 1000)
+    })
+})
 
 server.listen(8081, () => {
     console.log('Server listening on port 8080');
@@ -87,6 +68,14 @@ const onMessageSend = (msg) => {
     return
 }
 
+const signMsg = (msg) => {
+    const hash = new TextEncoder().encode(JSON.stringify(msg?.payload));
+    const signature = bls.sign(secretKey.toBytes(), hash);
+    msg.hash = hash;
+    msg.signature = signature;
+    msg.publicKey = bls.secretKeyToPublicKey(secretKey.toBytes());
+    return msg;
+}
 // const onMessageRecieve = (msg) => {
 //     if (msg.ttl <= 0) {
 //         return;
@@ -100,15 +89,6 @@ const onMessageSend = (msg) => {
 //     }
 
 // }
-const signMsg = (msg) => {
-    const hash = new TextEncoder().encode(JSON.stringify(msg?.payload));
-    const signature = bls.sign(secretKey.toBytes(), hash);
-    msg.hash = hash;
-    msg.signature = signature;
-    msg.publicKey = bls.secretKeyToPublicKey(secretKey.toBytes());
-    console.log(msg)
-    return msg;
-}
 
 // const verifyMsg = async (msg) => {
 //     if (bls.verify(msg.signature, msg.publicKey, msg.message)) {

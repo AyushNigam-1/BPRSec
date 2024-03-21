@@ -21,14 +21,16 @@ const publicKey = secretKey.toPublicKey();
 const blocks = {}
 
 const currentAddress = "192.168.45.67"
-
+const pack = []
 const server = net.createServer((socket) => {
     console.log('Client connected');
     socket.on('data', async (data) => {
         // const msg = JSON.parse(data.toString())
         // console.log(msg.publicKey, msg.hash, msg.signature)
         // console.log(bls.verify(msg.publicKey, msg.hash, msg.signature))
-        onMessageRecieve(JSON.parse(data.toString()))
+        // onMessageRecieve(JSON.parse(data.toString()))
+        // pack.push(data.toString())
+        console.log("data", data.toString())
     });
 
     socket.on('error', (err) => {
@@ -53,6 +55,7 @@ const onMessageRecieve = async (msg) => {
     const isVerified = await verifyMsg(msg)
 
     if (isVerified) {
+        console.log(blocks)
         // console.log({ isVerified })
     }
     else {
