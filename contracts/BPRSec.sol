@@ -1,18 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.17;
 
-struct subNodes {
-    string src;
-    string des;
-    string message;
-    string hash;
-    string sign;
-    string publicKey;
-    string timeStamp;
-}
-
 struct node {
-    subNodes[] data;
+    string[] data;
     string src;
     string dest;
     string timeStamp;
@@ -34,11 +24,12 @@ contract BPRSec {
         require(rootNodes.data.length == 10, "Invalid rootNodes length");
 
         node storage newNode = allRootNodes.push();
-
+        newNode.hopArray = new string[](rootNodes.data.length);
         for (uint i = 0; i < rootNodes.data.length; i++) {
             newNode.data.push(rootNodes.data[i]);
         }
-
+        newNode.timeStamp = rootNodes.timeStamp;
+        newNode.signature = rootNodes.signature;
         newNode.src = rootNodes.src;
         newNode.dest = rootNodes.dest;
 

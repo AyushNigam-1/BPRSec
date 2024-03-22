@@ -36,6 +36,7 @@ const server = net.createServer((socket) => {
 
 const client = net.createConnection({ port: 8080 }, () => {
     console.log('Connected to server');
+    let i = 0
     fs.readFile('./iot_data.json', 'utf8', (err, data) => {
         if (err) {
             console.error(err);
@@ -43,6 +44,7 @@ const client = net.createConnection({ port: 8080 }, () => {
         }
         const jsonData = JSON.parse(data);
         const interval = setInterval(() => {
+            ++i
             try {
                 client.write(onMessageSend(jsonData[i]));
             } catch (error) {
