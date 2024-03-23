@@ -13,22 +13,22 @@ const provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545/")
 
 const signer = new ethers.Wallet("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80", provider);
 
-const contract = new ethers.Contract("0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512", abi, signer);
+const contract = new ethers.Contract("0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e", abi, signer);
 
 const secretKey = bls.SecretKey.fromKeygen();
 
 let blocks = {}
 
 const currentAddress = "10.0.0.3"
-// const server = net.createServer((socket) => {
-// console.log('Client connected');
-// socket.on('data', async (data) => {
-//     onMessageRecieve(JSON.parse(data.toString()))
-// });
+// const app = net.createServer((socket) => {
+//     console.log('Client connected');
+//     socket.on('data', async (data) => {
+//         onMessageRecieve(JSON.parse(data.toString()))
+//     });
 
-// socket.on('error', (err) => {
-//     console.error('Socket error:', err);
-// });
+//     socket.on('error', (err) => {
+//         console.error('Socket error:', err);
+//     });
 // });
 // const server = new express()
 app.listen(8080, () => {
@@ -89,12 +89,12 @@ const verifyMsg = async (msg) => {
         }
         if (blocks.count == 10) {
             const block = {};
-            block.data = JSON.stringify(blocks.temp_blocks)
+            block.data = blocks.temp_blocks.map(block => JSON.stringify(block))
             block.src = msg.header.source_address
             block.dest = msg.header.destination_address
-            block.timeStamp = new Date().getTime()
-            block.signature = blake3.hash(blocks.temp_blocks.map(block => block.hash).join(""))
-            block.hopArray = blocks.hopArray;
+            block.timeStamp = JSON.stringify(new Date().getTime())
+            block.signature = blake3.hash(blocks.temp_blocks.map(block => block.hash).join("")).toString('hex')
+            block.hopArray = blocks.hopArray.map(hop => Object.keys(hop)[0]);
             await contract.save(block)
             blocks = {}
         }
@@ -116,7 +116,7 @@ const verifyMsg = async (msg) => {
 
 
 app.get('/', function (req, res) {
-    contract.getAllToken().then((data) =>
-        console.log(JSONdata)
+    contract.getAllNodes().then((data) =>
+        console.log(data)
     )
 }); 

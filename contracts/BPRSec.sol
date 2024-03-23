@@ -11,7 +11,7 @@ struct node {
 }
 
 struct token {
-    string add;
+    string addr;
     uint token;
 }
 contract BPRSec {
@@ -42,12 +42,27 @@ contract BPRSec {
     }
     function distributeTokens(string[] memory hopArray) public {
         for (uint i = 0; i < hopArray.length; i++) {
-            distTokens[(hopArray[i])] = distTokens[(hopArray[i])] + 1;
-            allTokens.push(token(hopArray[i], distTokens[(hopArray[i])] + 1));
-            emit TokenUpdated(hopArray[i], distTokens[hopArray[i]]);
+            string memory addr = hopArray[i];
+            bool isFound = false;
+            for (uint j = 0; j < allTokens.length; j++) {
+                if (
+                    keccak256(abi.encodePacked(allTokens[j].addr)) ==
+                    keccak256(abi.encodePacked(addr))
+                ) {
+                    allTokens[j].token = allTokens[j].token + 1;
+                    isFound = true;
+                    break;
+                }
+            }
+            if (!isFound) {
+                allTokens.push(token(addr, 1));
+            }
         }
     }
     function getAllToken() public view returns (token[] memory) {
         return allTokens;
+    }
+    function getAllNodes() public view returns (node[] memory) {
+        return allRootNodes;
     }
 }
