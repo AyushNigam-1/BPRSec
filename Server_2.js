@@ -16,51 +16,28 @@ let app = express();
 
 const secretKey = bls.SecretKey.fromKeygen();
 
-const publicKey = secretKey.toPublicKey();
-
 const blocks = {}
 
 const currentAddress = "192.168.45.67"
+const client = new net.Socket();
 
-
-const server = net.createServer((socket) => {
-    socket.on('data', (data) => {
-        console.log(new Uint8Array([...Object.values(data.hash)]))
-    });
-
-    socket.on('error', (err) => {
-        console.error('Socket error:', err);
-    });
-});
-
-
-const client = net.createConnection({ port: 8080 }, () => {
-    console.log('Connected to server');
-    let i = 0
-    fs.readFile('./iot_data.json', 'utf8', (err, data) => {
-        if (err) {
-            console.error(err);
-            return;
+client.connect({ port: 8080, host: 'localhost' }, () => {
+    client.on('data', (data) => {
+        console.log("data recieved Server_2",)
+        const message = JSON.parse(data.toString());
+        const redirectMsg = onMessageRecieve(JSON.parse(message.msg))
+        if (redirectMsg) {
+            let client = message.clients[Math.floor(Math.random() * message.clients.length)]
+            msg.clients = msg.clients.filter(cli => cli != client)
+            client.write(JSON.stringify({ message: onMessageSend(redirectMsg), clients: msg.clients, client }))
         }
-        const jsonData = JSON.parse(data);
-        const interval = setInterval(() => {
-            ++i
-            try {
-                client.write(onMessageSend(jsonData[i]));
-            } catch (error) {
-                console.log("err", error)
-                console.log("Package dropped")
-            }
-            if (i == jsonData.length) {
-                clearInterval(interval)
-            }
-        }, 1000)
-    })
+    });
 })
 
-server.listen(8081, () => {
-    console.log('Server listening on port 8080');
-});
+// server.listen(8082, () => {
+//     console.log('Server listening on port 8080');
+// });
+
 
 const onMessageSend = (msg) => {
     const signedMsg = signMsg(msg);
@@ -70,74 +47,74 @@ const onMessageSend = (msg) => {
     return
 }
 
-const signMsg = (msg) => {
-    const hash = new TextEncoder().encode(JSON.stringify(msg?.payload));
-    const signature = bls.sign(secretKey.toBytes(), hash);
-    msg.hash = hash;
-    msg.signature = signature;
-    msg.publicKey = bls.secretKeyToPublicKey(secretKey.toBytes());
-    return msg;
+const onMessageRecieve = async (msg) => {
+    const verifiedMsg = await verifyMsg(msg)
+    if (verifiedMsg && msg.ttl > 0) {
+        --msg.ttl
+        return verifiedMsg
+    }
+    else {
+        return false
+    }
 }
-// const onMessageRecieve = (msg) => {
-//     if (msg.ttl <= 0) {
-//         return;
-//     }
-//     const isVerified = verifyMsg(msg)
-//     if (isVerified) {
-//         msg.ttl--;
-//     }
-//     else {
-//         // drop packet
-//     }
 
-// }
+const signMsg = (msg) => {
+    const hash = new TextEncoder().encode(JSON.stringify(msg?.payload))
+    const signature = bls.sign(secretKey.toBytes(), hash)
+    msg.hash = hash
+    msg.signature = signature
+    msg.publicKey = bls.secretKeyToPublicKey(secretKey.toBytes())
+    msg.ttl = 6
+    return msg
+}
 
-// const verifyMsg = async (msg) => {
-//     if (bls.verify(msg.signature, msg.publicKey, msg.message)) {
-//         if (blocks[msg.destination].thresh) {
-//             blocks[msg.destination].thresh = (blocks[msg.destination].temp_blocks.reduce((acc, block) => { BigInt("0x" + acc.hash), BigInt("0x" + block.hash), 0 })) / blocks[msg.destination].temp_blocks.length
-//         }
-//         else {
-//             blocks[msg.destination].thresh = BigInt("0x" + msg.hash);
-//             blocks[msg.destination].sum = BigInt("0x" + msg.hash);
-//             blocks[msg.destination].total = 1;
-//         }
-//         if ((BigInt("0x" + msg.hash) <= blocks[msg.destination].thresh) && blocks[msg.destination].count < 10) {
-//             msg.root = true;
-//             blocks[msg.destination].count++;
-//             blocks[msg.destination].hopArray.push({ currentAddress: 1 });
-//             blocks[msg.destination].temp_blocks.push(msg);
-//         }
-//         else {
-//             msg.root = false
-//         }
-//         if (blocks[msg.destination].count == 10) {
-//             const block = {};
-//             block.data = blocks[msg.destination].temp_blocks
-//             block.timeStamp = new Date().getTime()
-//             block.signature = blake3.hash(blocks[msg.destination].data.map(block => block.hash).join(""))
-//             block.hopArray = blocks[msg.destination].hopArray;
-//             block.dest = msg.destination
-//             block.src = msg.src
-//             // await contract.save(block)
-//             blocks[msg.destination].count = 0
-//         }
-//         if (msg.destination == currentAddress) {
-//             await contract.distributeTokens((blocks[msg.destination].hopArray.map(hop => hop[hop.keys()[0]] == 1)));
-//             blocks[msg.destination].hopArray.forEach((hop) => {
-//                 hop[hop.keys()[0]] = 2
-//             });
-//         }
-//         return msg
-//     }
-//     else {
-//         return 0;
-//     }
-// }
-
-
-app.get('/', function (req, res) {
-    contract.getAllToken().then((data) =>
-        res.send(data)
-    )
-}); 
+const verifyMsg = async (msg) => {
+    if (bls.verify(new Uint8Array([...Object.values(msg.publicKey)]), new Uint8Array([...Object.values(msg.hash)]), (new Uint8Array([...Object.values(msg.signature)])))) {
+        msg.hash = parseInt(blake3.hash(new TextDecoder().decode(new Uint8Array([...Object.values(msg.hash)]))).toString("hex"), 16)
+        if (Object.keys(blocks).length) {
+            blocks.thresh = (blocks.temp_blocks.reduce((acc, block) => acc + block.hash, 0)) / blocks.count
+        }
+        else {
+            blocks.count = 0
+            blocks.hopArray = []
+            blocks.temp_blocks = []
+            blocks.thresh = msg.hash
+        }
+        if ((msg.hash >= blocks.thresh) && blocks.count < 10) {
+            msg.root = true;
+            blocks.count++;
+            blocks.hopArray.push({
+                [msg.header.destination_address]: 0
+            });
+            blocks.temp_blocks.push(msg);
+        }
+        else {
+            msg.root = false
+        }
+        if (blocks.count == 10) {
+            const block = {};
+            block.data = blocks.temp_blocks.map(block => JSON.stringify(block))
+            block.src = msg.header.source_address
+            block.dest = msg.header.destination_address
+            block.timeStamp = JSON.stringify(new Date().getTime())
+            block.signature = blake3.hash(blocks.temp_blocks.map(block => block.hash).join("")).toString('hex')
+            block.hopArray = blocks.hopArray.map(hop => Object.keys(hop)[0]);
+            await contract.save(block)
+            blocks = {}
+        }
+        if (msg.header.destination_address == currentAddress) {
+            msg.ttl = 0
+            console.log("Hop -->", blocks.hopArray.filter(obj => Object.values(obj)[0] === 0).map(obj => Object.keys(obj)[0]))
+            if (blocks.hopArray.length) {
+                await contract.distributeTokens(blocks.hopArray.filter(obj => Object.values(obj)[0] === 0).map(obj => Object.keys(obj)[0]));
+                blocks.hopArray.forEach((hop) => {
+                    hop[Object.keys(hop)[0]] = 1
+                });
+            }
+        }
+        return msg
+    }
+    else {
+        return 0;
+    }
+}

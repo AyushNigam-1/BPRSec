@@ -4,10 +4,11 @@ import { ethers } from "ethers";
 import express from "express";
 import net from 'net';
 import { createRequire } from 'module';
+import * as fs from 'fs'
 const require = createRequire(import.meta.url);
 const { abi } = require('./artifacts/contracts/BPRSec.sol/BPRSec.json');
 
-let app = express();
+let expressServer = express();
 
 const provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545/")
 
@@ -19,21 +20,62 @@ const secretKey = bls.SecretKey.fromKeygen();
 
 let blocks = {}
 
+let clients = []
+let count = 0
 const currentAddress = "10.0.0.3"
-// const app = net.createServer((socket) => {
-//     console.log('Client connected');
-//     socket.on('data', async (data) => {
-//         onMessageRecieve(JSON.parse(data.toString()))
-//     });
 
-//     socket.on('error', (err) => {
-//         console.error('Socket error:', err);
-//     });
-// });
-// const server = new express()
-app.listen(8080, () => {
-    console.log('Server listening on port 8080');
+const tcpServer = net.createServer((socket) => {
+    console.log(`${socket.remotePort} connected`)
+    clients.push(socket)
+    ++count
+    console.log(count)
+    if (count == 5) {
+        console.log("started")
+        startTransferring()
+    }
+
+    socket.on('data', (data) => {
+        const msg = JSON.parse(data.toString())
+        console.log("Receieved Server", msg.clients)
+        msg.client.write(JSON.stringify({ msg: msg.message, clients: msg.clients }));
+    });
+
+    socket.on('error', (err) => {
+        console.error('Socket error:', err);
+    });
 });
+
+const startTransferring = () => {
+    let i = 0
+    fs.readFile('./iot_data.json', 'utf8', (err, data) => {
+        if (err) {
+            console.error(err)
+            return
+        }
+        const jsonData = JSON.parse(data)
+        const interval = setInterval(() => {
+            ++i
+            try {
+                const port = Math.floor(Math.random() * (clients.length))
+                console.log("Selected Port", port)
+                clients[port].write(JSON.stringify({ msg: onMessageSend(jsonData[i]), clients: clients.filter(client => client != clients[port]) }));
+            } catch (error) {
+                console.log("err", error)
+                console.log("Package dropped")
+            }
+            if (i == jsonData.length) {
+                clearInterval(interval)
+            }
+        }, 2000)
+    })
+}
+
+tcpServer.listen(8080, () => {
+    console.log('TCP server listening on port 8080');
+});
+// expressServer.listen(8081, () => {
+//     console.log('Express server listening on port 8081');
+// });
 
 
 const onMessageSend = (msg) => {
@@ -56,12 +98,13 @@ const onMessageRecieve = async (msg) => {
 
 }
 const signMsg = (msg) => {
-    const hash = new TextEncoder().encode(JSON.stringify(msg?.payload));
-    const signature = bls.sign(secretKey.toBytes(), hash);
-    msg.hash = hash;
-    msg.signature = signature;
-    msg.publicKey = bls.secretKeyToPublicKey(secretKey.toBytes());
-    return msg;
+    const hash = new TextEncoder().encode(JSON.stringify(msg?.payload))
+    const signature = bls.sign(secretKey.toBytes(), hash)
+    msg.hash = hash
+    msg.signature = signature
+    msg.publicKey = bls.secretKeyToPublicKey(secretKey.toBytes())
+    msg.ttl = 6
+    return msg
 }
 
 const verifyMsg = async (msg) => {
@@ -103,7 +146,7 @@ const verifyMsg = async (msg) => {
             if (blocks.hopArray.length) {
                 await contract.distributeTokens(blocks.hopArray.filter(obj => Object.values(obj)[0] === 0).map(obj => Object.keys(obj)[0]));
                 blocks.hopArray.forEach((hop) => {
-                    hop[Object.keys(hop)[0]] == 1
+                    hop[Object.keys(hop)[0]] = 1
                 });
             }
         }
@@ -115,8 +158,8 @@ const verifyMsg = async (msg) => {
 }
 
 
-app.get('/', function (req, res) {
-    contract.getAllNodes().then((data) =>
-        console.log(data)
-    )
-}); 
+// app.get('/', function (req, res) {
+//     contract.getAllNodes().then((data) =>
+//         console.log(data)
+//     )
+// }); 
