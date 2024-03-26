@@ -7,39 +7,36 @@ import { createRequire } from 'module';
 import * as fs from 'fs'
 const require = createRequire(import.meta.url);
 const { abi } = require('./artifacts/contracts/BPRSec.sol/BPRSec.json');
-
+import cors from 'cors'
 let expressServer = express();
+expressServer.use(cors())
 
 const provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545/")
 
 const signer = new ethers.Wallet("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80", provider);
 
-const contract = new ethers.Contract("0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e", abi, signer);
+const contract = new ethers.Contract("0x359570B3a0437805D0a71457D61AD26a28cAC9A2", abi, signer);
 
 const secretKey = bls.SecretKey.fromKeygen();
 
-let blocks = {}
-
 let clients = []
+
 let count = 0
-const currentAddress = "10.0.0.3"
 
 const tcpServer = net.createServer((socket) => {
     console.log(`${socket.remotePort} connected`)
     clients.push(socket)
     ++count
-    console.log(count)
     if (count == 5) {
-        console.log("started")
+        console.log("Started Sending Packets")
         startTransferring()
     }
-
     socket.on('data', (data) => {
         const msg = JSON.parse(data.toString())
-        console.log("Receieved Server", msg.clients)
-        msg.client.write(JSON.stringify({ msg: msg.message, clients: msg.clients }));
+        const nextClient = clients.find(client => client._peername.port == msg.client?._peername.port)
+        console.log("Data recieved -->", clients.indexOf(nextClient))
+        nextClient.write(JSON.stringify({ msg: msg.message, clients: msg.clients }));
     });
-
     socket.on('error', (err) => {
         console.error('Socket error:', err);
     });
@@ -54,6 +51,9 @@ const startTransferring = () => {
         }
         const jsonData = JSON.parse(data)
         const interval = setInterval(() => {
+            if (i == jsonData.length - 1) {
+                clearInterval(interval)
+            }
             ++i
             try {
                 const port = Math.floor(Math.random() * (clients.length))
@@ -63,19 +63,16 @@ const startTransferring = () => {
                 console.log("err", error)
                 console.log("Package dropped")
             }
-            if (i == jsonData.length) {
-                clearInterval(interval)
-            }
-        }, 2000)
+        }, 6000)
     })
 }
 
 tcpServer.listen(8080, () => {
     console.log('TCP server listening on port 8080');
 });
-// expressServer.listen(8081, () => {
-//     console.log('Express server listening on port 8081');
-// });
+expressServer.listen(8081, () => {
+    console.log('Express server listening on port 8081');
+});
 
 
 const onMessageSend = (msg) => {
@@ -86,80 +83,26 @@ const onMessageSend = (msg) => {
     return
 }
 
-const onMessageRecieve = async (msg) => {
-    const isVerified = await verifyMsg(msg)
-    if (isVerified) {
-        console.log("blocks", blocks)
-        // console.log({ isVerified })
-    }
-    else {
-    }
 
-
-}
 const signMsg = (msg) => {
+    console.log("Signing Msg...")
     const hash = new TextEncoder().encode(JSON.stringify(msg?.payload))
     const signature = bls.sign(secretKey.toBytes(), hash)
     msg.hash = hash
     msg.signature = signature
     msg.publicKey = bls.secretKeyToPublicKey(secretKey.toBytes())
+    msg.hopArray = []
     msg.ttl = 6
     return msg
 }
 
-const verifyMsg = async (msg) => {
-    if (bls.verify(new Uint8Array([...Object.values(msg.publicKey)]), new Uint8Array([...Object.values(msg.hash)]), (new Uint8Array([...Object.values(msg.signature)])))) {
-        msg.hash = parseInt(blake3.hash(new TextDecoder().decode(new Uint8Array([...Object.values(msg.hash)]))).toString("hex"), 16)
-        if (Object.keys(blocks).length) {
-            blocks.thresh = (blocks.temp_blocks.reduce((acc, block) => acc + block.hash, 0)) / blocks.count
-        }
-        else {
-            blocks.count = 0
-            blocks.hopArray = []
-            blocks.temp_blocks = []
-            blocks.thresh = msg.hash
-        }
-        if ((msg.hash >= blocks.thresh) && blocks.count < 10) {
-            msg.root = true;
-            blocks.count++;
-            blocks.hopArray.push({
-                [msg.header.destination_address]: 0
-            });
-            blocks.temp_blocks.push(msg);
-        }
-        else {
-            msg.root = false
-        }
-        if (blocks.count == 10) {
-            const block = {};
-            block.data = blocks.temp_blocks.map(block => JSON.stringify(block))
-            block.src = msg.header.source_address
-            block.dest = msg.header.destination_address
-            block.timeStamp = JSON.stringify(new Date().getTime())
-            block.signature = blake3.hash(blocks.temp_blocks.map(block => block.hash).join("")).toString('hex')
-            block.hopArray = blocks.hopArray.map(hop => Object.keys(hop)[0]);
-            await contract.save(block)
-            blocks = {}
-        }
-        if (msg.header.destination_address == currentAddress) {
-            console.log("Hop -->", blocks.hopArray.filter(obj => Object.values(obj)[0] === 0).map(obj => Object.keys(obj)[0]))
-            if (blocks.hopArray.length) {
-                await contract.distributeTokens(blocks.hopArray.filter(obj => Object.values(obj)[0] === 0).map(obj => Object.keys(obj)[0]));
-                blocks.hopArray.forEach((hop) => {
-                    hop[Object.keys(hop)[0]] = 1
-                });
-            }
-        }
-        return msg
-    }
-    else {
-        return 0;
-    }
-}
-
-
-// app.get('/', function (req, res) {
-//     contract.getAllNodes().then((data) =>
-//         console.log(data)
-//     )
-// }); 
+expressServer.get('/getBlocks', function (req, res) {
+    contract.getAllNodes().then((data) =>
+        res.json(data.map(([tx, src, dest, timestamp, hash, hop]) => [{ tx, src, dest, timestamp, hash, hop }]))
+    )
+});
+expressServer.get('/getTokens', function (req, res) {
+    contract.getAllToken().then((data) =>
+        res.json(data.map(([address, bigInt]) => [address, bigInt.toString()]))
+    )
+}); 

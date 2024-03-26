@@ -15,6 +15,7 @@
     "@openzeppelin/contracts": "^5.0.2",
     "blake3": "^2.1.7",
     "bls-signatures": "^2.0.2",
+    "cors": "^2.8.5",
     "elliptic": "^6.5.5",
     "ethereumjs-abi": "^0.6.8",
     "ethers": "^6.11.1",

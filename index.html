@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, 
+                   initial-scale=1.0">
+    <title>Bar Chart Example</title>
+
+    <!-- Include Chart.js from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js">
+    </script>
+
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 20px;
+            text-align: center;
+        }
+
+        h1 {
+            color: green;
+        }
+
+        canvas {
+            border: 2px solid #858080;
+        }
+    </style>
+</head>
+
+<body>
+    <h2 class="font-bold text-2xl my-3">Number of Data Packet Interactions per Participant</h2>
+
+    <!-- Creating an element -->
+    <canvas id="myBarChart" width="480" height="100">
+    </canvas>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.8/axios.min.js"
+        integrity="sha512-PJa3oQSLWRB7wHZ7GQ/g+qyv6r4mbuhmiDb8BjSFZ8NZ2a42oTtAq5n0ucWAwcQDlikAtkub+tPVCw4np27WCg=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        (async () => {
+            let blocks = await axios.get("http://localhost:8081/getBlocks")
+            console.log(blocks)
+
+            // let txPerNode = new Set([...blocks.data.map(block => JSON.parse(block[0].tx[0]).src), ...blocks.data.map(block => JSON.parse(block[0].tx[0]).dest)])
+            // console.log(txPerNode)
+            // let txPerNode = blocks.data.map(block => block[0].tx).map(tx => tx).map
+            // console.log(txPerNode)
+            let blocksFrequency = blocks.data.map(block => block[0])
+            console.log(blocksFrequency)
+
+            let tokens = await axios.get("http://localhost:8081/getTokens")
+            console.log(tokens)
+            //     let labels = records.data.map(record => record[0])
+            //     let counts = records.data.map(record => record[1])
+            //     let data = {
+            //         labels,
+            //         datasets: [{
+            //             label: 'Data Packets',
+            //             data: counts,
+            //             backgroundColor: 'rgba(70, 192, 192, 0.6)',
+            //             borderColor: 'rgba(150, 100, 255, 1)',
+            //             borderWidth: 1
+            //         }]
+            //     };
+
+            //     // Configuration options for the chart
+            //     let options = {
+            //         scales: {
+            //             y: {
+            //                 beginAtZero: true
+            //             }
+            //         }
+            //     };
+
+            //     // Get the canvas element
+            //     let ctx = document.getElementById('myBarChart')
+            //         .getContext('2d');
+
+            //     // Create the bar chart
+            //     let myBarChart = new Chart(ctx, {
+            //         type: 'bar',
+            //         data: data,
+            //         options: options
+            //     });
+        })()
+        // data sample for the chart
+
+    </script>
+
+</body>
+
+</html>
