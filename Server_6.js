@@ -11,7 +11,7 @@ const provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545/")
 
 const signer = new ethers.Wallet("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80", provider);
 
-const contract = new ethers.Contract("0x359570B3a0437805D0a71457D61AD26a28cAC9A2", abi, signer);
+const contract = new ethers.Contract("0x70E5370b8981Abc6e14C91F4AcE823954EFC8eA3", abi, signer);
 
 const secretKey = bls.SecretKey.fromKeygen();
 

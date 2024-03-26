@@ -38,7 +38,7 @@ contract BPRSec {
         for (uint i = 0; i < rootNodes.hopArray.length; i++) {
             newNode.hopArray[i] = rootNodes.hopArray[i];
         }
-        allRootNodes.push(newNode);
+        // allRootNodes.push(newNode);
     }
     function distributeTokens(string[] memory hopArray) public {
         for (uint i = 0; i < hopArray.length; i++) {

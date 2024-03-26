@@ -29,64 +29,137 @@
 </head>
 
 <body>
-    <h2 class="font-bold text-2xl my-3">Number of Data Packet Interactions per Participant</h2>
-
     <!-- Creating an element -->
-    <canvas id="myBarChart" width="480" height="100">
-    </canvas>
+    <div style="display: flex; justify-content: space-around;">
+        <div style="width: 100%; padding: 40px;">
+            <h2 class="m-2">Token Distribution Per Participant</h2>
+            <canvas id="myBarChart" width="100%" height="100%">
+            </canvas>
+        </div>
+        <div style="width: 100%;  padding: 40px;">
+            <h2 class="m-2">Packets Sent And Received By Participant</h2>
+            <canvas id="myBarChart2" width="100%" height="100%">
+            </canvas>
+        </div>
+        <div style="width: 100%;  padding: 40px;">
+            <h2 class="m-2">Blocks Per Minute</h2>
+            <canvas id="myBarChart3" width="100%" height="100%">
+            </canvas>
+        </div>
+    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.8/axios.min.js"
         integrity="sha512-PJa3oQSLWRB7wHZ7GQ/g+qyv6r4mbuhmiDb8BjSFZ8NZ2a42oTtAq5n0ucWAwcQDlikAtkub+tPVCw4np27WCg=="
         crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
     <script>
         (async () => {
+            let records = await axios.get("http://localhost:8081/getTokens")
             let blocks = await axios.get("http://localhost:8081/getBlocks")
-            console.log(blocks)
 
-            // let txPerNode = new Set([...blocks.data.map(block => JSON.parse(block[0].tx[0]).src), ...blocks.data.map(block => JSON.parse(block[0].tx[0]).dest)])
-            // console.log(txPerNode)
-            // let txPerNode = blocks.data.map(block => block[0].tx).map(tx => tx).map
-            // console.log(txPerNode)
-            let blocksFrequency = blocks.data.map(block => block[0])
+            let labels = records.data.map(record => record[0])
+            let counts = records.data.map(record => record[1])
+            let data = {
+                labels,
+                datasets: [{
+                    label: 'No. Of Tokens',
+                    data: [12, 17, 3, 8, 2],
+                    backgroundColor: 'rgba(70, 192, 192, 0.6)',
+                    borderColor: 'rgba(150, 100, 255, 1)',
+                    borderWidth: 1
+                },
+                ]
+            };
+            let options = {
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            };
+            let ctx = document.getElementById('myBarChart')
+                .getContext('2d');
+            let myBarChart = new Chart(ctx, {
+                type: 'bar',
+                data: data,
+                options: options
+            });
+            let ctx2 = document.getElementById('myBarChart2')
+                .getContext('2d')
+            let frequency = []
+            blocks.data.map(block => block[0].tx).forEach(tx => {
+                tx.forEach(el => {
+                    let tx = JSON.parse(el)
+                    frequency.push(tx)
+                })
+            })
+            function countOccurrences(data) {
+                const counts = {};
+                for (const item of data) {
+                    const src = item.src;
+                    const dest = item.dest;
+                    counts[src] = counts[src] || { src: 0, dest: 0 };
+                    counts[dest] = counts[dest] || { src: 0, dest: 0 };
+                    counts[src].src++;
+                    counts[dest].dest++;
+                }
+                return counts;
+            }
+            const blocksFrequency = countOccurrences(frequency);
             console.log(blocksFrequency)
-
-            let tokens = await axios.get("http://localhost:8081/getTokens")
-            console.log(tokens)
-            //     let labels = records.data.map(record => record[0])
-            //     let counts = records.data.map(record => record[1])
-            //     let data = {
-            //         labels,
-            //         datasets: [{
-            //             label: 'Data Packets',
-            //             data: counts,
-            //             backgroundColor: 'rgba(70, 192, 192, 0.6)',
-            //             borderColor: 'rgba(150, 100, 255, 1)',
-            //             borderWidth: 1
-            //         }]
-            //     };
-
-            //     // Configuration options for the chart
-            //     let options = {
-            //         scales: {
-            //             y: {
-            //                 beginAtZero: true
-            //             }
-            //         }
-            //     };
-
-            //     // Get the canvas element
-            //     let ctx = document.getElementById('myBarChart')
-            //         .getContext('2d');
-
-            //     // Create the bar chart
-            //     let myBarChart = new Chart(ctx, {
-            //         type: 'bar',
-            //         data: data,
-            //         options: options
-            //     });
+            console.log(Object.keys(blocksFrequency).map(block => blocksFrequency[block].src))
+            let data2 = {
+                labels: Object.keys(blocksFrequency),
+                datasets: [{
+                    label: 'Sent',
+                    data: Object.keys(blocksFrequency).map(block => blocksFrequency[block].src),
+                    backgroundColor: 'rgba(70, 192, 123, 0.6)',
+                },
+                {
+                    label: 'Received',
+                    data: Object.keys(blocksFrequency).map(block => blocksFrequency[block].dest),
+                    backgroundColor: 'rgba(70, 123, 192, 0.6)',
+                },
+                ]
+            };
+            let options2 = {
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            };
+            let myBarChart2 = new Chart(ctx2, {
+                type: 'bar',
+                data: data2,
+                options: options
+            });
+            const timestamps = blocks.data.map(block => block[0].timestamp)
+            const blockCountsPerMinute = {};
+            for (const timestampString of timestamps) {
+                const timestamp = parseInt(timestampString);
+                const date = new Date(timestamp);
+                const day = date.getDate().toString().padStart(2, '0'); // Get day with leading zero
+                const month = date.toLocaleString('en-US', { weekday: 'short' }); // Get month abbreviation and day
+                const formattedDate = `${day}/${month} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+                blockCountsPerMinute[formattedDate] = blockCountsPerMinute[formattedDate] || { count: 0 };
+                blockCountsPerMinute[formattedDate].count++;
+                console.log(formattedDate)
+            }
+            let ctx3 = document.getElementById('myBarChart3')
+                .getContext('2d');
+            const chart = new Chart(ctx3, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(blockCountsPerMinute),
+                    datasets: [{
+                        label: 'Blocks per Minute',
+                        data: Object.values(blockCountsPerMinute).map(val => val.count),
+                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        borderWidth: 1
+                    }]
+                },
+            });
         })()
-        // data sample for the chart
-
     </script>
 
 </body>
