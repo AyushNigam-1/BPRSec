@@ -15,9 +15,9 @@ const provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545/")
 
 const signer = new ethers.Wallet("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80", provider);
 
-const contract = new ethers.Contract("0x70E5370b8981Abc6e14C91F4AcE823954EFC8eA3", abi, signer);
+const contract = new ethers.Contract("0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE", abi, signer);
 
-const secretKey = bls.SecretKey.fromKeygen();
+const secretKey = bls.SecretKey.fromKeygen(); // private key generation
 
 let clients = []
 
@@ -34,7 +34,6 @@ const tcpServer = net.createServer((socket) => {
     socket.on('data', (data) => {
         const msg = JSON.parse(data.toString())
         const nextClient = clients.find(client => client._peername.port == msg.client?._peername.port)
-        console.log("Data recieved -->", clients.indexOf(nextClient))
         nextClient.write(JSON.stringify({ msg: msg.message, clients: msg.clients }));
     });
     socket.on('error', (err) => {
@@ -51,17 +50,18 @@ const startTransferring = () => {
         }
         const jsonData = JSON.parse(data)
         const interval = setInterval(() => {
-            if (i == jsonData.length - 2) {
-                clearInterval(interval)
-            }
             ++i
             try {
                 const port = Math.floor(Math.random() * (clients.length))
-                console.log("Selected Port", port)
+                console.log("Sending Packet", i)
                 clients[port].write(JSON.stringify({ msg: onMessageSend(jsonData[i]), clients: clients.filter(client => client != clients[port]) }));
             } catch (error) {
                 console.log("err", error)
                 console.log("Package dropped")
+            }
+            if (i == jsonData.length - 2) {
+                console.log("Successfully Sent " + i + " Packets")
+                clearInterval(interval)
             }
         }, 6000)
     })
@@ -104,5 +104,10 @@ expressServer.get('/getBlocks', function (req, res) {
 expressServer.get('/getTokens', function (req, res) {
     contract.getAllToken().then((data) =>
         res.json(data.map(([address, bigInt]) => [address, bigInt.toString()]))
+    )
+});
+expressServer.get('/getRate', function (req, res) {
+    contract.getRate().then((data) =>
+        res.json(data.toString())
     )
 }); 

@@ -15,16 +15,17 @@ struct token {
     uint token;
 }
 contract BPRSec {
+    uint successRate = 0;
     token[] public allTokens;
     node[] public allRootNodes;
     mapping(string => uint) public distTokens;
+    uint successfulDeliveries = 0;
     event TokenUpdated(string hopAddress, uint256 newCount);
 
     function save(node memory rootNodes) public {
         require(rootNodes.data.length == 10, "Invalid rootNodes length");
 
         node storage newNode = allRootNodes.push();
-        newNode.hopArray = new string[](rootNodes.data.length);
         for (uint i = 0; i < rootNodes.data.length; i++) {
             newNode.data.push(rootNodes.data[i]);
         }
@@ -33,14 +34,15 @@ contract BPRSec {
         newNode.src = rootNodes.src;
         newNode.dest = rootNodes.dest;
 
-        newNode.hopArray = new string[](rootNodes.hopArray.length);
-
         for (uint i = 0; i < rootNodes.hopArray.length; i++) {
-            newNode.hopArray[i] = rootNodes.hopArray[i];
+            newNode.hopArray.push(rootNodes.hopArray[i]);
         }
-        // allRootNodes.push(newNode);
+    }
+    function increaseRate() public {
+        successRate = successRate + 1;
     }
     function distributeTokens(string[] memory hopArray) public {
+        increaseRate();
         for (uint i = 0; i < hopArray.length; i++) {
             string memory addr = hopArray[i];
             bool isFound = false;
@@ -58,6 +60,10 @@ contract BPRSec {
                 allTokens.push(token(addr, 1));
             }
         }
+    }
+
+    function getRate() public view returns (uint) {
+        return successRate;
     }
     function getAllToken() public view returns (token[] memory) {
         return allTokens;

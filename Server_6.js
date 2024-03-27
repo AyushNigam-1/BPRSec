@@ -11,18 +11,19 @@ const provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545/")
 
 const signer = new ethers.Wallet("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80", provider);
 
-const contract = new ethers.Contract("0x70E5370b8981Abc6e14C91F4AcE823954EFC8eA3", abi, signer);
+const contract = new ethers.Contract("0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE", abi, signer);
 
 const secretKey = bls.SecretKey.fromKeygen();
 
 let blocks = {}
 
 const currentAddress = "10.0.0.5"
+
 const client = new net.Socket();
 
 client.connect({ port: 8080 }, () => {
     client.on('data', async (data) => {
-        console.log("data recieved Server_3",)
+        console.log("Data Recieved Server_6",)
         const message = JSON.parse(data.toString());
         const redirectMsg = await onMessageRecieve(JSON.parse(message.msg))
         if (redirectMsg) {
@@ -73,8 +74,6 @@ const verifyMsg = async (msg) => {
             blocks.temp_blocks = []
             blocks.thresh = msg.hash
         }
-
-        // if ((msg.hash >= blocks.thresh) && (msg.hash >= blocks.thresh / blocks.count) && blocks.count < 10) {
         if (blocks.count < 10) {
             console.log("rootNode found", blocks.thresh)
             msg.hopArray.push(currentAddress)
@@ -86,9 +85,9 @@ const verifyMsg = async (msg) => {
         else {
             msg.root = false
         }
-        if (blocks.count == 10) {
+        if (msg.hash >= blocks.thresh && blocks.count == 10) {
             const block = {};
-            block.data = blocks.temp_blocks.map(block => JSON.stringify({ src: block.header.source_address, dest: block.header.destination_address, payload: msg.payload.timestamp }))
+            block.data = blocks.temp_blocks.map(block => JSON.stringify({ src: block.header.source_address, dest: block.header.destination_address, payload: block.payload.timestamp, hopArray: block.hopArray, ttl: block.ttl }))
             block.src = msg.header.source_address
             block.dest = msg.header.destination_address
             block.timeStamp = JSON.stringify(new Date().getTime())
@@ -98,8 +97,8 @@ const verifyMsg = async (msg) => {
             blocks = {}
         }
         if (msg.header.destination_address == currentAddress) {
+            console.log("Destination Reached")
             msg.ttl = 0
-            console.log("Hop -->", msg.hopArray)
             if (msg.hopArray.length) {
                 await contract.distributeTokens(msg.hopArray);
             }
