@@ -15,7 +15,7 @@ const provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545/")
 
 const signer = new ethers.Wallet("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80", provider);
 
-const contract = new ethers.Contract("0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE", abi, signer);
+const contract = new ethers.Contract("0x5FbDB2315678afecb367f032d93F642f64180aa3", abi, signer);
 
 const secretKey = bls.SecretKey.fromKeygen(); // private key generation
 
@@ -63,7 +63,7 @@ const startTransferring = () => {
                 console.log("Successfully Sent " + i + " Packets")
                 clearInterval(interval)
             }
-        }, 6000)
+        }, 10000)
     })
 }
 
@@ -97,17 +97,18 @@ const signMsg = (msg) => {
 }
 
 expressServer.get('/getBlocks', function (req, res) {
-    contract.getAllNodes().then((data) =>
+    contract.getAllNodes().then((data) => {
         res.json(data.map(([tx, src, dest, timestamp, hash, hop]) => [{ tx, src, dest, timestamp, hash, hop }]))
-    )
+    })
 });
 expressServer.get('/getTokens', function (req, res) {
-    contract.getAllToken().then((data) =>
+    contract.getAllToken().then((data) => {
         res.json(data.map(([address, bigInt]) => [address, bigInt.toString()]))
+    }
     )
 });
 expressServer.get('/getRate', function (req, res) {
-    contract.getRate().then((data) =>
+    contract.getRate().then((data) => {
         res.json(data.toString())
-    )
+    })
 }); 

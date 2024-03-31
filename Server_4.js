@@ -9,14 +9,17 @@ const { abi } = require('./artifacts/contracts/BPRSec.sol/BPRSec.json');
 
 const provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545/")
 
-const signer = new ethers.Wallet("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80", provider);
+const signer = new ethers.Wallet("0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6", provider);
 
-const contract = new ethers.Contract("0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE", abi, signer);
+const contract = new ethers.Contract("0x5FbDB2315678afecb367f032d93F642f64180aa3", abi, signer);
 
 const secretKey = bls.SecretKey.fromKeygen();
 
 let blocks = {}
 
+let pendingTransactions = [];
+let isSending = false;
+let nonce = null;; // Initialize nonce
 const currentAddress = "10.0.0.3"
 const client = new net.Socket();
 
@@ -66,24 +69,20 @@ const verifyMsg = async (msg) => {
     if (bls.verify(new Uint8Array([...Object.values(msg.publicKey)]), new Uint8Array([...Object.values(msg.hash)]), (new Uint8Array([...Object.values(msg.signature)])))) {
         msg.hash = parseInt(blake3.hash(new TextDecoder().decode(new Uint8Array([...Object.values(msg.hash)]))).toString("hex"), 16)
         if (Object.keys(blocks).length) {
-            blocks.thresh = (blocks.temp_blocks.reduce((acc, block) => acc + parseInt(blake3.hash(new TextDecoder().decode(new Uint8Array([...Object.values(block.hash)]))).toString("hex"), 16), 0)) / blocks.count / blocks.count
+            blocks.thresh = (blocks.temp_blocks.reduce((acc, block) => acc + parseInt(blake3.hash(new TextDecoder().decode(new Uint8Array([...Object.values(block.hash)]))).toString("hex"), 16), 0)) / blocks.count
         }
         else {
             blocks.count = 0
             blocks.temp_blocks = []
             blocks.thresh = msg.hash
         }
-
-        // if ((msg.hash >= blocks.thresh) && (msg.hash >= blocks.thresh / blocks.count) && blocks.count < 10) {
         if (blocks.count < 10) {
             console.log("rootNode found", blocks.thresh)
             msg.hopArray.push(currentAddress)
             msg.root = true;
             blocks.count++;
-            // console.log("msg", msg)
             blocks.temp_blocks.push(msg);
-            // console.log("thresh", blocks.thresh, "temp_blocks", blocks?.temp_blocks[blocks.count - 1]?.hash)
-            // console.log("temp_blocks", blocks.temp_blocks)
+            console.log("thresh", blocks.thresh, "temp_blocks", blocks?.temp_blocks[blocks.count - 1]?.hash)
         }
         else {
             msg.root = false
@@ -96,19 +95,47 @@ const verifyMsg = async (msg) => {
             block.timeStamp = JSON.stringify(new Date().getTime())
             block.signature = blake3.hash(blocks.temp_blocks.map(block => block.hash).join("")).toString('hex')
             block.hopArray = msg.hopArray;
-            await contract.save(block)
+            await sendTransaction(contract, 'save', [block]);
             blocks = {}
         }
         if (msg.header.destination_address == currentAddress) {
             console.log("Destination Reached")
             msg.ttl = 0
             if (msg.hopArray.length) {
-                await contract.distributeTokens(msg.hopArray);
+                await sendTransaction(contract, 'distributeTokens', [msg.hopArray]);
             }
         }
         return msg
     }
     else {
         return 0;
+    }
+}
+async function sendTransaction(contract, methodName, args) {
+    pendingTransactions.push({ contract, methodName, args });
+    if (!isSending) {
+        isSending = true;
+        while (pendingTransactions.length > 0) {
+            const { contract, methodName, args } = pendingTransactions.shift();
+            try {
+                if (nonce === null) {
+                    nonce = await provider.getTransactionCount(signer.address);
+                }
+                const tx = await contract[methodName](...args, { nonce: nonce });
+                await tx.wait();
+                nonce++;
+            } catch (error) {
+                console.error('Error sending transaction:', error);
+                // Handle nonce-related errors here
+                if (error.code === ethers.utils.Logger.errors.NONCE_EXPIRED) {
+                    console.log('Nonce expired, retrying with incremented nonce...');
+                    // Re-add the failed transaction to the pending transactions queue
+                    pendingTransactions.unshift({ contract, methodName, args });
+                    // Increment nonce for next retry
+                    nonce++;
+                }
+            }
+        }
+        isSending = false;
     }
 }
