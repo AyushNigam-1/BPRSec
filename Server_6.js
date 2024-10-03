@@ -1,7 +1,6 @@
-import bls from "@chainsafe/bls/blst-native";
+import bls from "@chainsafe/bls";
 import blake3 from 'blake3';
 import { ethers } from "ethers";
-import express from "express";
 import net from 'net';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
@@ -11,7 +10,7 @@ const provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545/")
 
 const signer = new ethers.Wallet("0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d", provider);
 
-const contract = new ethers.Contract("0x1613beB3B2C4f22Ee086B2b38C1476A3cE7f78E8", abi, signer);
+const contract = new ethers.Contract("0x5FbDB2315678afecb367f032d93F642f64180aa3", abi, signer);
 
 const secretKey = bls.SecretKey.fromKeygen();
 

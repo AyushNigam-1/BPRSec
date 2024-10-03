@@ -1,4 +1,4 @@
-import bls from "@chainsafe/bls/blst-native";
+import bls from "@chainsafe/bls";
 import blake3 from 'blake3';
 import { ethers } from "ethers";
 import express from "express";
