@@ -1,13 +1,18 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.17;
 
+struct hopInfo{
+   string addr;
+   uint timeStamp;
+}
+
 struct node {
     string[] data;
     string src;
     string dest;
     string timeStamp;
     string signature;
-    string[] hopArray;
+    hopInfo[] hopArray;
 }
 
 struct token {

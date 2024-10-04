@@ -1,7 +1,6 @@
 import bls from "@chainsafe/bls";
 import blake3 from 'blake3';
 import { ethers } from "ethers";
-import express from "express";
 import net from 'net';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
@@ -77,7 +76,7 @@ const verifyMsg = async (msg) => {
         }
         if (blocks.count < 10) {
             console.log("rootNode found", blocks.thresh)
-            msg.hopArray.push(currentAddress)
+            msg.hopArray.push({ addr: currentAddress, time: new Date().getTime() })
             msg.root = true;
             blocks.count++;
             blocks.temp_blocks.push(msg);
@@ -101,7 +100,7 @@ const verifyMsg = async (msg) => {
             console.log("Destination Reached")
             msg.ttl = 0
             if (msg.hopArray.length) {
-                await sendTransaction(contract, 'distributeTokens', [msg.hopArray]);
+                await sendTransaction(contract, 'distributeTokens', [...msg.hopArray.map(hop => hop.addr)]);
             }
         }
         return msg
@@ -125,12 +124,9 @@ async function sendTransaction(contract, methodName, args) {
                 nonce++;
             } catch (error) {
                 console.error('Error sending transaction:', error);
-                // Handle nonce-related errors here
                 if (error.code === ethers.utils.Logger.errors.NONCE_EXPIRED) {
                     console.log('Nonce expired, retrying with incremented nonce...');
-                    // Re-add the failed transaction to the pending transactions queue
                     pendingTransactions.unshift({ contract, methodName, args });
-                    // Increment nonce for next retry
                     nonce++;
                 }
             }

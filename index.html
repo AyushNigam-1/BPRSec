@@ -61,13 +61,14 @@
                 var records = await axios.get("http://localhost:8081/getTokens")
                 var blocks = await axios.get("http://localhost:8081/getBlocks")
                 var successfulTransactions = await axios.get("http://localhost:8081/getRate")
-
+                console.log("tokens -->",records)
+                console.log("blocks -->", blocks)
+                console.log("successfulTx -->", successfulTransactions)
             } catch (error) {
                 console.log(error)
             }
-
             console.log("working")
-            console.log(records, blocks)
+            // console.log(records, blocks)
             let labels = records.data.map(record => record[0])
             let counts = records.data.map(record => record[1])
             let data = {
@@ -186,12 +187,13 @@
                     datasets: [
                         {
                             label: 'Succeed',
-                            data: [Object.keys(blocksFrequency).map(block => blocksFrequency[block].dest).reduce((acc, src) => acc + src, 0) - parseInt(successfulTransactions.data)],
+                            data: [parseInt(successfulTransactions.data)],
+                            // [Object.keys(blocksFrequency).map(block => blocksFrequency[block].dest).reduce((acc, src) => acc + src, 0) - parseInt(successfulTransactions.data)],
                             backgroundColor: 'rgba(144, 238, 144, 0.6)',
                         },
                         {
                             label: 'Failed',
-                            data: [parseInt(successfulTransactions.data)],
+                            data: [70 -parseInt(successfulTransactions.data)],
                             backgroundColor: 'rgba(255, 192, 203, 0.6)',
                         },
 

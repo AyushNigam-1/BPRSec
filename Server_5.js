@@ -98,7 +98,7 @@ const verifyMsg = async (msg) => {
         }
         if (blocks.count < 10) {
             console.log("rootNode found", blocks.thresh)
-            msg.hopArray.push(currentAddress)
+            msg.hopArray.push({ addr: currentAddress, time: new Date().getTime() })
             msg.root = true;
             blocks.count++;
             blocks.temp_blocks.push(msg);
@@ -122,7 +122,7 @@ const verifyMsg = async (msg) => {
             console.log("Destination Reached")
             msg.ttl = 0
             if (msg.hopArray.length) {
-                await sendTransaction(contract, 'distributeTokens', [msg.hopArray]);
+                await sendTransaction(contract, 'distributeTokens', [...msg.hopArray.map(hop => hop.addr)]);
             }
         }
         return msg
