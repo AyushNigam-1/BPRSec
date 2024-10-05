@@ -29,7 +29,7 @@
 
 <body>
     <!-- Creating an element -->
-    <div style="columns: 2;">
+    <div style="display:grid; grid-template-columns: repeat(2, 1fr)">
         <div style="width: 80%; padding: 40px;">
             <h2 class="m-2">Token Distribution Per Participant</h2>
             <canvas id="myBarChart" width="100%" height="100%">
@@ -41,7 +41,7 @@
             </canvas>
         </div>
         <div style="width: 80%;  padding: 40px;">
-            <h2 class="m-2">Blocks Per Minute</h2>
+            <h2 class="m-2">Blocks Created Per Minute</h2>
             <canvas id="myBarChart3" width="100%" height="100%">
             </canvas>
         </div>
@@ -50,25 +50,57 @@
             <canvas id="myBarChart4" width="100%" height="100%">
             </canvas>
         </div>
+        <div style="width: 80%;  padding: 40px;">
+            <h2 class="m-2">Packets Transferred Per Minute </h2>
+            <canvas id="myBarChart5" width="100%" height="100%">
+            </canvas>
+        </div>
+
     </div>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.8/axios.min.js"
         integrity="sha512-PJa3oQSLWRB7wHZ7GQ/g+qyv6r4mbuhmiDb8BjSFZ8NZ2a42oTtAq5n0ucWAwcQDlikAtkub+tPVCw4np27WCg=="
         crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script>
         (async () => {
-            // console.log("working")
             try {
                 var records = await axios.get("http://localhost:8081/getTokens")
                 var blocks = await axios.get("http://localhost:8081/getBlocks")
                 var successfulTransactions = await axios.get("http://localhost:8081/getRate")
-                console.log("tokens -->",records)
+                console.log("tokens -->", records)
                 console.log("blocks -->", blocks)
                 console.log("successfulTx -->", successfulTransactions)
             } catch (error) {
                 console.log(error)
             }
             console.log("working")
-            // console.log(records, blocks)
+            function countTimestampsPerMinute(timestamps) {
+                const counts = {};
+                timestamps.forEach(timestamp => {
+                    const date = new Date(timestamp);
+                    const day = String(date.getDate()).padStart(2, '0');
+                    const weekDay = date.toLocaleString('en-US', { weekday: 'short' });
+                    const hour = String(date.getHours()).padStart(2, '0');
+                    const minute = String(date.getMinutes()).padStart(2, '0');
+                    const formattedMinute = `${day} / ${weekDay} - ${hour}:${minute}`;
+                    if (counts[formattedMinute]) {
+                        counts[formattedMinute]++;
+                    } else {
+                        counts[formattedMinute] = 1;
+                    }
+                });
+                const result = Object.entries(counts).map(([minute, count]) => ({
+                    minute,
+                    count
+                }));
+
+                return result;
+            }
+            let packets = blocks.data.flatMap(block =>
+                block.tx.map(txString => JSON.parse(txString))
+            );
+            let pkTimestamps = packets.map(txs => txs.hopArray).flatMap(pkinfo => pkinfo).map(pk => pk.timeStamp)
+            let pkPerMinutes = countTimestampsPerMinute(pkTimestamps)
             let labels = records.data.map(record => record[0])
             let counts = records.data.map(record => record[1])
             let data = {
@@ -99,7 +131,7 @@
             let ctx2 = document.getElementById('myBarChart2')
                 .getContext('2d')
             let frequency = []
-            blocks.data.map(block => block[0].tx).forEach(tx => {
+            blocks.data.map(block => block.tx).forEach(tx => {
                 tx.forEach(el => {
                     let tx = JSON.parse(el)
                     frequency.push(tx)
@@ -150,13 +182,13 @@
                 data: data2,
                 options: options
             });
-            const timestamps = blocks.data.map(block => block[0].timestamp)
+            const timestamps = blocks.data.map(block => block.timestamp)
             const blockCountsPerMinute = {};
             for (const timestampString of timestamps) {
                 const timestamp = parseInt(timestampString);
                 const date = new Date(timestamp);
-                const day = date.getDate().toString().padStart(2, '0'); // Get day with leading zero
-                const month = date.toLocaleString('en-US', { weekday: 'short' }); // Get month abbreviation and day
+                const day = date.getDate().toString().padStart(2, '0');
+                const month = date.toLocaleString('en-US', { weekday: 'short' });
                 const formattedDate = `${day} / ${month} - ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
                 blockCountsPerMinute[formattedDate] = blockCountsPerMinute[formattedDate] || { count: 0 };
                 blockCountsPerMinute[formattedDate].count++;
@@ -165,6 +197,8 @@
             let ctx3 = document.getElementById('myBarChart3')
                 .getContext('2d');
             let ctx4 = document.getElementById('myBarChart4')
+                .getContext('2d');
+            let ctx5 = document.getElementById('myBarChart5')
                 .getContext('2d');
             console.log(Object.keys(blockCountsPerMinute))
             new Chart(ctx3, {
@@ -180,20 +214,32 @@
                     }]
                 },
             });
+            new Chart(ctx5, {
+                type: 'bar',
+                data: {
+                    labels: pkPerMinutes.map(pk => pk.minute),
+                    datasets: [
+                        {
+                            label: 'Packets',
+                            data: pkPerMinutes.map(pk => pk.count),
+                            backgroundColor: 'rgba(144, 228, 144, 0.6)',
+                        },
+                    ]
+                },
+            });
             new Chart(ctx4, {
                 type: 'bar',
                 data: {
-                    labels: ['Succees vs Failure Rate'],
+                    labels: ['Packets Delivery Success vs Failure Rate'],
                     datasets: [
                         {
                             label: 'Succeed',
                             data: [parseInt(successfulTransactions.data)],
-                            // [Object.keys(blocksFrequency).map(block => blocksFrequency[block].dest).reduce((acc, src) => acc + src, 0) - parseInt(successfulTransactions.data)],
                             backgroundColor: 'rgba(144, 238, 144, 0.6)',
                         },
                         {
                             label: 'Failed',
-                            data: [70 -parseInt(successfulTransactions.data)],
+                            data: [70 - parseInt(successfulTransactions.data)],
                             backgroundColor: 'rgba(255, 192, 203, 0.6)',
                         },
 
@@ -202,7 +248,6 @@
             });
         })()
     </script>
-
 </body>
 
 </html>

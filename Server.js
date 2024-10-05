@@ -63,7 +63,7 @@ const startTransferring = () => {
                 console.log("Successfully Sent " + i + " Packets")
                 clearInterval(interval)
             }
-        }, 10000)
+        }, 6000)
     })
 }
 
@@ -98,7 +98,20 @@ const signMsg = (msg) => {
 
 expressServer.get('/getBlocks', function (req, res) {
     contract.getAllNodes().then((data) => {
-        res.json(data.map(([tx, src, dest, timestamp, hash, hop]) => [{ tx, src, dest, timestamp, hash, hop }]))
+        // Convert the data before sending it to the response
+        const formattedData = data.map(node => ({
+            tx: node.data,                           // Assuming data is an array of strings
+            src: node.src,                             // Assuming src is a string
+            dest: node.dest,                           // Assuming dest is a string
+            timestamp: node.timeStamp,                 // Assuming timeStamp is a string
+            signature: node.signature,                 // Assuming signature is a string
+            hopArray: node.hopArray.map(hop => ({      // Iterate over hopArray to format BigInt
+                addr: hop.addr,                        // Assuming addr is a string
+                timeStamp: hop.timeStamp.toString()    // Convert BigInt timestamp to string
+            }))
+        }));
+
+        res.json(formattedData);
     })
 });
 expressServer.get('/getTokens', function (req, res) {

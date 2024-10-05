@@ -98,7 +98,7 @@ const verifyMsg = async (msg) => {
         }
         if (blocks.count < 10) {
             console.log("rootNode found", blocks.thresh)
-            msg.hopArray.push({ addr: currentAddress, time: new Date().getTime() })
+            msg.hopArray.push({ addr: currentAddress, timeStamp: new Date().getTime() })
             msg.root = true;
             blocks.count++;
             blocks.temp_blocks.push(msg);
@@ -109,20 +109,21 @@ const verifyMsg = async (msg) => {
         }
         if (msg.hash >= blocks.thresh && blocks.count == 10) {
             const block = {};
+            console.log("msg -->", msg)
             block.data = blocks.temp_blocks.map(block => JSON.stringify({ src: block.header.source_address, dest: block.header.destination_address, payload: block.payload.timestamp, hopArray: block.hopArray, ttl: block.ttl }))
             block.src = msg.header.source_address
             block.dest = msg.header.destination_address
             block.timeStamp = JSON.stringify(new Date().getTime())
             block.signature = blake3.hash(blocks.temp_blocks.map(block => block.hash).join("")).toString('hex')
             block.hopArray = msg.hopArray;
-            await sendTransaction(contract, 'save', [block]);
+            await sendTransaction(contract, 'save', block);
             blocks = {}
         }
         if (msg.header.destination_address == currentAddress) {
             console.log("Destination Reached")
             msg.ttl = 0
             if (msg.hopArray.length) {
-                await sendTransaction(contract, 'distributeTokens', [...msg.hopArray.map(hop => hop.addr)]);
+                await sendTransaction(contract, 'distributeTokens', msg.hopArray.map(hop => hop.addr));
             }
         }
         return msg
@@ -133,6 +134,7 @@ const verifyMsg = async (msg) => {
 }
 async function sendTransaction(contract, methodName, args) {
     pendingTransactions.push({ contract, methodName, args });
+    console.log(args)
     if (!isSending) {
         isSending = true;
         while (pendingTransactions.length > 0) {
@@ -141,7 +143,7 @@ async function sendTransaction(contract, methodName, args) {
                 if (nonce === null) {
                     nonce = await provider.getTransactionCount(signer.address);
                 }
-                const tx = await contract[methodName](...args, { nonce: nonce });
+                const tx = await contract[methodName](args, { nonce: nonce });
                 await tx.wait();
                 nonce++;
             } catch (error) {
